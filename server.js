@@ -3,7 +3,6 @@ require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
-
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
@@ -20,17 +19,12 @@ app.use(express.json());
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error("❌ Supabase env vars missing");
+  process.exit(1);
+}
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-console.log("SUPABASE URL LOADED:", SUPABASE_URL ? "YES" : "NO");
-
-/* ===============================
-   RIOT CONFIG
-================================ */
-const RIOT_API_KEY = process.env.RIOT_API_KEY;
-console.log("RIOT API KEY LOADED:", RIOT_API_KEY ? "YES" : "NO");
-
-const REGION = "europe";
 
 /* ===============================
    HEALTH CHECK
@@ -40,7 +34,7 @@ app.get("/", (req, res) => {
 });
 
 /* ===============================
-   ACCOUNTS API (SUPABASE)
+   ACCOUNTS API (GLOBAL DATA)
 ================================ */
 
 // GET all accounts
@@ -57,7 +51,7 @@ app.get("/accounts", async (req, res) => {
   res.json({ success: true, data });
 });
 
-// ADD new account
+// ADD account
 app.post("/accounts", async (req, res) => {
   const {
     player,
@@ -94,7 +88,13 @@ app.post("/accounts", async (req, res) => {
 });
 
 /* ===============================
-   RANK ENDPOINT (RIOT API)
+   RIOT API CONFIG
+================================ */
+const RIOT_API_KEY = process.env.RIOT_API_KEY;
+const REGION = "europe";
+
+/* ===============================
+   RANK ENDPOINT
 ================================ */
 app.get("/rank", async (req, res) => {
   try {
@@ -154,9 +154,9 @@ app.get("/rank", async (req, res) => {
 });
 
 /* ===============================
-   START SERVER (IMPORTANT)
+   START SERVER
 ================================ */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
+  console.log(`✅ Backend running on port ${PORT}`);
 });
