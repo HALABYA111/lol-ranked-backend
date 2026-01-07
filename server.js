@@ -16,15 +16,10 @@ app.use(express.json());
 /* ===============================
    SUPABASE
 ================================ */
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error("❌ Supabase env vars missing");
-  process.exit(1);
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
 /* ===============================
    HEALTH CHECK
@@ -51,7 +46,7 @@ app.get("/accounts", async (req, res) => {
   res.json({ success: true, data });
 });
 
-// ADD account
+// ADD new account
 app.post("/accounts", async (req, res) => {
   const {
     player,
@@ -81,7 +76,10 @@ app.post("/accounts", async (req, res) => {
   ]);
 
   if (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 
   res.json({ success: true });
@@ -146,9 +144,7 @@ app.get("/rank", async (req, res) => {
 
   } catch (err) {
     res.status(500).json({
-      error: "Failed to fetch rank",
-      status: err.response?.status,
-      data: err.response?.data
+      error: "Failed to fetch rank"
     });
   }
 });
@@ -157,6 +153,6 @@ app.get("/rank", async (req, res) => {
    START SERVER
 ================================ */
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Backend running on port ${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`Backend running on port ${PORT}`)
+);
