@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
+
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
@@ -10,32 +11,30 @@ const app = express();
 /* ===============================
    MIDDLEWARE
 ================================ */
-
 app.use(cors());
 app.use(express.json());
 
 /* ===============================
-   SUPABASE CONFIG
+   SUPABASE
 ================================ */
-
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* ===============================
-   RIOT API CONFIG
-================================ */
+console.log("SUPABASE URL LOADED:", SUPABASE_URL ? "YES" : "NO");
 
+/* ===============================
+   RIOT CONFIG
+================================ */
 const RIOT_API_KEY = process.env.RIOT_API_KEY;
-console.log("API KEY LOADED:", RIOT_API_KEY ? "YES" : "NO");
+console.log("RIOT API KEY LOADED:", RIOT_API_KEY ? "YES" : "NO");
 
 const REGION = "europe";
 
 /* ===============================
    HEALTH CHECK
 ================================ */
-
 app.get("/", (req, res) => {
   res.json({ status: "Backend running" });
 });
@@ -49,13 +48,10 @@ app.get("/accounts", async (req, res) => {
   const { data, error } = await supabase
     .from("accounts")
     .select("*")
-    .order("created_at", { ascending: true });
+    .order("id", { ascending: true });
 
   if (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return res.status(500).json({ success: false, error: error.message });
   }
 
   res.json({ success: true, data });
@@ -79,57 +75,27 @@ app.post("/accounts", async (req, res) => {
     });
   }
 
-  const { error } = await supabase
-    .from("accounts")
-    .insert([
-      {
-        player,
-        riotId,
-        server,
-        peakRank,
-        peakDivision,
-        peakLP
-      }
-    ]);
+  const { error } = await supabase.from("accounts").insert([
+    {
+      player,
+      riotId,
+      server,
+      peakRank,
+      peakDivision,
+      peakLP
+    }
+  ]);
 
   if (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return res.status(500).json({ success: false, error: error.message });
   }
 
   res.json({ success: true });
 });
 
 /* ===============================
-   TEST: Riot ID → PUUID
+   RANK ENDPOINT (RIOT API)
 ================================ */
-
-app.get("/test-account", async (req, res) => {
-  try {
-    const riotId = "HALABYA111#111";
-    const [name, tag] = riotId.split("#");
-
-    const response = await axios.get(
-      `https://${REGION}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`,
-      { headers: { "X-Riot-Token": RIOT_API_KEY } }
-    );
-
-    res.json({ success: true, data: response.data });
-  } catch (err) {
-    res.status(500).json({
-      step: "ACCOUNT",
-      status: err.response?.status,
-      data: err.response?.data
-    });
-  }
-});
-
-/* ===============================
-   FINAL RANK ENDPOINT
-================================ */
-
 app.get("/rank", async (req, res) => {
   try {
     const { riotId, server } = req.query;
@@ -147,17 +113,17 @@ app.get("/rank", async (req, res) => {
       return res.status(400).json({ error: "Invalid server" });
     }
 
-    // Riot ID → PUUID
-    const [rawName, rawTag] = riotId.split("#");
+    const [name, tag] = riotId.split("#");
 
+    // Riot ID → PUUID
     const accountRes = await axios.get(
-      `https://${REGION}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(rawName)}/${encodeURIComponent(rawTag)}`,
+      `https://${REGION}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`,
       { headers: { "X-Riot-Token": RIOT_API_KEY } }
     );
 
     const puuid = accountRes.data.puuid;
 
-    // Ranked data by PUUID
+    // Ranked data
     const rankedRes = await axios.get(
       `https://${platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`,
       { headers: { "X-Riot-Token": RIOT_API_KEY } }
@@ -174,16 +140,11 @@ app.get("/rank", async (req, res) => {
     res.json({
       ranked: true,
       tier: soloQ.tier,
-      rank: soloQ.rank, // null for Master+
+      rank: soloQ.rank,
       lp: soloQ.leaguePoints
     });
 
   } catch (err) {
-    console.error("===== RIOT API ERROR =====");
-    console.error("Status:", err.response?.status);
-    console.error("Data:", err.response?.data);
-    console.error("==========================");
-
     res.status(500).json({
       error: "Failed to fetch rank",
       status: err.response?.status,
@@ -193,9 +154,8 @@ app.get("/rank", async (req, res) => {
 });
 
 /* ===============================
-   START SERVER
+   START SERVER (IMPORTANT)
 ================================ */
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
