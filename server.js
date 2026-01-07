@@ -16,10 +16,10 @@ app.use(express.json());
 /* ===============================
    SUPABASE
 ================================ */
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ===============================
    HEALTH CHECK
@@ -29,15 +29,14 @@ app.get("/", (req, res) => {
 });
 
 /* ===============================
-   ACCOUNTS API (GLOBAL DATA)
+   ACCOUNTS API
 ================================ */
 
 // GET all accounts
 app.get("/accounts", async (req, res) => {
   const { data, error } = await supabase
     .from("accounts")
-    .select("*")
-    .order("id", { ascending: true });
+    .select("*");
 
   if (error) {
     return res.status(500).json({ success: false, error: error.message });
@@ -46,7 +45,7 @@ app.get("/accounts", async (req, res) => {
   res.json({ success: true, data });
 });
 
-// ADD new account
+// ADD account
 app.post("/accounts", async (req, res) => {
   const {
     player,
@@ -76,10 +75,7 @@ app.post("/accounts", async (req, res) => {
   ]);
 
   if (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return res.status(500).json({ success: false, error: error.message });
   }
 
   res.json({ success: true });
@@ -113,7 +109,6 @@ app.get("/rank", async (req, res) => {
 
     const [name, tag] = riotId.split("#");
 
-    // Riot ID → PUUID
     const accountRes = await axios.get(
       `https://${REGION}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`,
       { headers: { "X-Riot-Token": RIOT_API_KEY } }
@@ -121,7 +116,6 @@ app.get("/rank", async (req, res) => {
 
     const puuid = accountRes.data.puuid;
 
-    // Ranked data
     const rankedRes = await axios.get(
       `https://${platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`,
       { headers: { "X-Riot-Token": RIOT_API_KEY } }
@@ -143,18 +137,14 @@ app.get("/rank", async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({
-      error: "Failed to fetch rank"
-    });
+    res.status(500).json({ error: "Failed to fetch rank" });
   }
 });
 
 /* ===============================
-   START SERVER
+   START SERVER (RAILWAY SAFE)
 ================================ */
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
 });
-
