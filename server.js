@@ -64,16 +64,17 @@ app.post("/accounts", async (req, res) => {
       });
     }
 
+    // ✅ FIX: map camelCase → lowercase Supabase columns
     const { data, error } = await supabase
       .from("accounts")
       .insert([
         {
           player,
-          riotId,
+          riotid: riotId,
           server,
-          peakRank,
-          peakDivision,
-          peakLP
+          peakrank: peakRank,
+          peakdivision: peakDivision,
+          peaklp: peakLP
         }
       ])
       .select();
@@ -93,7 +94,6 @@ app.post("/accounts", async (req, res) => {
     res.status(500).json({ success: false, error: "Server crashed" });
   }
 });
-
 
 /* ===============================
    RIOT API CONFIG
@@ -162,4 +162,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
 });
-
