@@ -1,87 +1,27 @@
-const Database = require("better-sqlite3");
-
-// Create / open database file
-const db = new Database("database.db");
-
-// Create table if it does not exist
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS accounts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    player TEXT,
-    riotId TEXT,
-    server TEXT,
-    peakRank TEXT,
-    peakDivision TEXT,
-    peakLP INTEGER
-  )
-`).run();
-
 require("dotenv").config();
 
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 
 /* ===============================
-   MIDDLEWARE (IMPORTANT ORDER)
+   MIDDLEWARE
 ================================ */
 
 app.use(cors());
 app.use(express.json());
 
 /* ===============================
-   DATABASE API
+   SUPABASE CONFIG
 ================================ */
 
-// GET all accounts
-app.get("/accounts", (req, res) => {
-  try {
-    const rows = db.prepare("SELECT * FROM accounts").all();
-    res.json({ success: true, data: rows });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
-// ADD new account
-app.post("/accounts", (req, res) => {
-  const {
-    player,
-    riotId,
-    server,
-    peakRank,
-    peakDivision,
-    peakLP
-  } = req.body;
-
-  if (!player || !riotId || !server) {
-    return res.status(400).json({
-      success: false,
-      error: "Missing required fields"
-    });
-  }
-
-  try {
-    db.prepare(`
-      INSERT INTO accounts
-      (player, riotId, server, peakRank, peakDivision, peakLP)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
-      player,
-      riotId,
-      server,
-      peakRank,
-      peakDivision,
-      peakLP
-    );
-
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ===============================
    RIOT API CONFIG
@@ -98,6 +38,68 @@ const REGION = "europe";
 
 app.get("/", (req, res) => {
   res.json({ status: "Backend running" });
+});
+
+/* ===============================
+   ACCOUNTS API (SUPABASE)
+================================ */
+
+// GET all accounts
+app.get("/accounts", async (req, res) => {
+  const { data, error } = await supabase
+    .from("accounts")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+
+  res.json({ success: true, data });
+});
+
+// ADD new account
+app.post("/accounts", async (req, res) => {
+  const {
+    player,
+    riotId,
+    server,
+    peakRank,
+    peakDivision,
+    peakLP
+  } = req.body;
+
+  if (!player || !riotId || !server) {
+    return res.status(400).json({
+      success: false,
+      error: "Missing required fields"
+    });
+  }
+
+  const { error } = await supabase
+    .from("accounts")
+    .insert([
+      {
+        player,
+        riotId,
+        server,
+        peakRank,
+        peakDivision,
+        peakLP
+      }
+    ]);
+
+  if (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+
+  res.json({ success: true });
 });
 
 /* ===============================
@@ -145,7 +147,7 @@ app.get("/rank", async (req, res) => {
       return res.status(400).json({ error: "Invalid server" });
     }
 
-    // 1️⃣ Riot ID → PUUID
+    // Riot ID → PUUID
     const [rawName, rawTag] = riotId.split("#");
 
     const accountRes = await axios.get(
@@ -155,7 +157,7 @@ app.get("/rank", async (req, res) => {
 
     const puuid = accountRes.data.puuid;
 
-    // 2️⃣ Ranked data by PUUID
+    // Ranked data by PUUID
     const rankedRes = await axios.get(
       `https://${platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`,
       { headers: { "X-Riot-Token": RIOT_API_KEY } }
@@ -172,7 +174,7 @@ app.get("/rank", async (req, res) => {
     res.json({
       ranked: true,
       tier: soloQ.tier,
-      rank: soloQ.rank,
+      rank: soloQ.rank, // null for Master+
       lp: soloQ.leaguePoints
     });
 
@@ -194,7 +196,7 @@ app.get("/rank", async (req, res) => {
    START SERVER
 ================================ */
 
-const PORT = 3000;
-app.listen(PORT, () =>
-  console.log(`Backend running on http://localhost:${PORT}`)
-);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Backend running on port ${PORT}`);
+});
