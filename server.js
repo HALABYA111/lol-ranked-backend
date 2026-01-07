@@ -47,39 +47,53 @@ app.get("/accounts", async (req, res) => {
 
 // ADD account
 app.post("/accounts", async (req, res) => {
-  const {
-    player,
-    riotId,
-    server,
-    peakRank,
-    peakDivision,
-    peakLP
-  } = req.body;
-
-  if (!player || !riotId || !server) {
-    return res.status(400).json({
-      success: false,
-      error: "Missing required fields"
-    });
-  }
-
-  const { error } = await supabase.from("accounts").insert([
-    {
+  try {
+    const {
       player,
       riotId,
       server,
       peakRank,
       peakDivision,
       peakLP
+    } = req.body;
+
+    if (!player || !riotId || !server) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields"
+      });
     }
-  ]);
 
-  if (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    const { data, error } = await supabase
+      .from("accounts")
+      .insert([
+        {
+          player,
+          riotId,
+          server,
+          peakRank,
+          peakDivision,
+          peakLP
+        }
+      ])
+      .select();
+
+    if (error) {
+      console.error("SUPABASE INSERT ERROR:", error);
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+        details: error
+      });
+    }
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error("SERVER ERROR:", err);
+    res.status(500).json({ success: false, error: "Server crashed" });
   }
-
-  res.json({ success: true });
 });
+
 
 /* ===============================
    RIOT API CONFIG
@@ -148,3 +162,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
 });
+
