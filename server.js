@@ -64,7 +64,6 @@ app.post("/accounts", async (req, res) => {
       });
     }
 
-    // ✅ FIX: map camelCase → lowercase Supabase columns
     const { data, error } = await supabase
       .from("accounts")
       .insert([
@@ -83,8 +82,7 @@ app.post("/accounts", async (req, res) => {
       console.error("SUPABASE INSERT ERROR:", error);
       return res.status(500).json({
         success: false,
-        error: error.message,
-        details: error
+        error: error.message
       });
     }
 
@@ -93,6 +91,50 @@ app.post("/accounts", async (req, res) => {
     console.error("SERVER ERROR:", err);
     res.status(500).json({ success: false, error: "Server crashed" });
   }
+});
+
+/* ===============================
+   DELETE ROUTES (🔥 FIX)
+================================ */
+
+// DELETE single account by ID
+app.delete("/accounts/:id", async (req, res) => {
+  const { id } = req.params;
+
+  const { error } = await supabase
+    .from("accounts")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error("SUPABASE DELETE ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+
+  res.sendStatus(204);
+});
+
+// DELETE all accounts for a player
+app.delete("/accounts/player/:player", async (req, res) => {
+  const { player } = req.params;
+
+  const { error } = await supabase
+    .from("accounts")
+    .delete()
+    .eq("player", player);
+
+  if (error) {
+    console.error("SUPABASE DELETE PLAYER ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+
+  res.sendStatus(204);
 });
 
 /* ===============================
@@ -151,6 +193,7 @@ app.get("/rank", async (req, res) => {
     });
 
   } catch (err) {
+    console.error("RIOT API ERROR:", err.message);
     res.status(500).json({ error: "Failed to fetch rank" });
   }
 });
